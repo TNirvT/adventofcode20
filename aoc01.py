@@ -8,7 +8,7 @@ def open_txt(filename: str):
             lines.append(int(line.rstrip()))
     return lines
 
-def sum_to_2020(lines: list, n):
+def sum_to_2020(lines: list, n: int) -> int:
     combos = combinations(lines, n)
     for combo in combos:
         if sum(combo) == 2020:
