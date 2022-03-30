@@ -35,3 +35,10 @@ if __name__ == "__main__":
         if policy_freq >= line.policy.low and policy_freq <= line.policy.hi:
             valid_count += 1
     print("part 1: ", valid_count)
+
+    valid_count = 0
+    for line in lines:
+        char = line.policy.char
+        if (line.password[line.policy.low-1] == char) != (line.password[line.policy.hi-1] == char):
+            valid_count += 1
+    print("part 2: ", valid_count)
