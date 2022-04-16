@@ -29,32 +29,30 @@ def dfs_allpath(g: dict, start: int, end: int, visited: set=set()):
     visited.add(start)
 
     if start == end:
-        # print(*path, sep=" ->")
         count += 1
     else:
         for node in g[start]:
             if node not in visited:
-                # dfs_allpath(g, node, end, visited, path)
                 dfs_allpath(g, node, end, visited)
 
     visited -= {start}
     return
 
-def dfs(g: dict, start: int, visited: dict=dict()):
-    if start in visited:
-        return visited[start]
+def dfs(g: dict, start: int, paths_count: dict=dict()):
+    if start in paths_count:
+        return paths_count[start]
     if g[start]: # i.e. not the last node (largest joltage), since bool(set()) == False
         count = 0
         for node in g[start]:
-            count += dfs(g, node, visited)
-        visited[start] = count
-        # visited[start] = sum(dfs(g, x, visited) for x in g[start])
-        return visited[start]
+            count += dfs(g, node, paths_count)
+        paths_count[start] = count
+        # paths_count[start] = sum(dfs(g, x, paths_count) for x in g[start])
+        return paths_count[start]
     else: # i.e. start == last node
         return 1
 
 if __name__ == "__main__":
-    lines = open_txt("test.txt")
+    # lines = open_txt("test.txt")
     lines = open_txt("aoc10.txt")
     print("part 1: ", part_one(lines))
 
@@ -64,4 +62,4 @@ if __name__ == "__main__":
     count = 0
     # dfs_allpath(g, 0, max(lines))
     count = dfs(g, 0)
-    print("count: ", count)
+    print("part 2: ", count)
