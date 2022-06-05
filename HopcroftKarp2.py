@@ -49,32 +49,7 @@ def graph_original(g_digital: dict, dict_revert: dict) -> dict:
         g_original[dict_revert[k]] = [dict_revert[x] for x in v]
     return g_original
 
-def bfs(data: dict) -> dict: # the function is a reference / stepping-stone
-    g, g_reverse = graph_digital(data)
-    lhs = len(data)
-    start = randint(0, lhs-1)
-    # start = 0
-    visited = {start}
-    queue = [start]
-    result = [None] * lhs
-    results = []
-
-    while queue:
-        vertex = queue.pop(0)
-        for neighbor in g[vertex]:
-            if neighbor not in visited:
-                queue.append(neighbor)
-                visited.add(neighbor)
-
-                if vertex in range(lhs) and result[vertex] is not None:
-                    # vertex on LHS and unpaired
-                    result[vertex] = neighbor
-                elif vertex not in range(lhs) and vertex not in result:
-                    # vertex on RHS and unpaired
-                    result[neighbor] = vertex
-    return {g_reverse[i]: g_reverse[x] for (i, x) in enumerate(result) if x is not None}
-
-def bfs_allpaths(data: dict) -> list[list]:
+def bfs_allpaths(data: dict) -> list[dict]:
     g, g_reverse = graph_digital(data)
 
     # create a dummy vertex NIL marking the end-point of all possible paths
@@ -122,16 +97,52 @@ def unpaired(data: dict, path: dict) -> Unpaired:
             rhs.append(vertex)
     return Unpaired(lhs, rhs)
 
-def graph_dfs(data: dict, path: dict):
-    free_vertices = unpaired(data, path)
-    rhs = set()
-    g_dfs = {vertex: data[vertex] for vertex in free_vertices.lhs}
-    return
+def graph_dfs(data: dict, bfs_path: dict):
+    free_vertices = unpaired(data, bfs_path)
+    g_dfs = dict()
+    count_down = len(free_vertices.rhs)
+    bfs_dict = dict(zip(bfs_path.values(), bfs_path.keys()))
+    alt_layer = set()
+    while count_down > 0:
+        if not alt_layer:
+            layer = free_vertices.lhs
+        else:
+            layer = set()
+            for vertex in alt_layer:
+                g_dfs[bfs_dict[vertex]] = [vertex]
+                layer.add(bfs_dict[vertex])
+            alt_layer = set()
+        for vertex in layer:
+            for neighbor in data[vertex]:
+                if neighbor in g_dfs.keys():
+                    g_dfs[neighbor].append(vertex)
+                else:
+                    g_dfs[neighbor] = [vertex]
+                if neighbor in free_vertices.rhs:
+                    count_down -= 1
+                alt_layer.add(neighbor)
+    return g_dfs
+
+    # result = deepcopy(bfs_path)
+    # for start in free_vertices.lhs:
+    #     stack = [[start]]
+    #     while stack:
+    #         path = stack.pop()
+    #         current = path[-1]
+    #         if current in free_vertices.rhs:
+    #             free_vertices.lhs.remove(start)
+    #             free_vertices.rhs.remove(current)
+    #             for i in range(len(path)):
+    #                 if not i % 2:
+    #                     result[path[i+1]] = path[i]
+    #             break
+            
+    # return
 
 if __name__ == "__main__":
     paths = bfs_allpaths(bipartite_data)
     length = max(len(x) for x in paths)
     better_paths = [x for x in paths if len(x) == length]
-    print(better_paths)
-    free_vertices = unpaired(bipartite_data, better_paths[0])
-    print(free_vertices)
+    print(better_paths[0])
+    g_dfs = graph_dfs(bipartite_data, better_paths[0])
+    print(g_dfs)
