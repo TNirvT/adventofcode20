@@ -21,30 +21,30 @@ def get_neighbors_pt2(node: tuple[int, int, int, int]) -> set[tuple[int, int, in
     return neighbors
 
 def one_cycle(active_nodes: set[tuple], part=1) -> None:
-        energy = dict()
+    energy = dict()
 
-        if part == 1:
-            get_neighbors = get_neighbors_pt1
-        elif part == 2:
-            get_neighbors = get_neighbors_pt2
+    if part == 1:
+        get_neighbors = get_neighbors_pt1
+    elif part == 2:
+        get_neighbors = get_neighbors_pt2
 
-        for node in active_nodes:
-            neighbors = get_neighbors(node)
-            for neighbor in neighbors:
-                if energy.get(neighbor):
-                    energy[neighbor] += 1
-                else:
-                    energy[neighbor] = 1
+    for node in active_nodes:
+        neighbors = get_neighbors(node)
+        for neighbor in neighbors:
+            if energy.get(neighbor):
+                energy[neighbor] += 1
+            else:
+                energy[neighbor] = 1
 
-        for node in active_nodes:
-            if node not in energy.keys():
-                energy[node] = 0
+    for node in active_nodes:
+        if node not in energy.keys():
+            energy[node] = 0
 
-        for node, level in energy.items():
-            if node in active_nodes and level != 2 and level != 3:
-                active_nodes.remove(node)
-            elif node not in active_nodes and level == 3:
-                active_nodes.add(node)
+    for node, level in energy.items():
+        if node in active_nodes and level != 2 and level != 3:
+            active_nodes.remove(node)
+        elif node not in active_nodes and level == 3:
+            active_nodes.add(node)
 
 def part1(lines: list[str]):
     active_nodes = set()
