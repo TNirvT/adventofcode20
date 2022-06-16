@@ -149,27 +149,29 @@ def part2(lines: list[str]) -> int:
     result = 0
     for line in lines:
         tokens = tokenize(line)
-        tmp = []
-        for i, token in enumerate(tokens):
-            tmp.append(token)
+        modified = []
+        while tokens:
+            token = tokens.pop(0)
             if token == "+":
-                if tokens[i-1] == ")":
-                    start_idx = i - 1 -_parentheses(tokens[i-1::-1])
-                    tmp.insert(start_idx, "(")
+                if modified[-1] == ")":
+                    start_idx = _parentheses(modified[::-1])
+                    modified.insert(-1 - start_idx, "(")
                 else:
-                    tmp.insert(i-1, "(")
-                if tokens[i+1] == "(":
-                    end_idx = i + 1 + _parentheses(tokens[i+1:])
-                    tmp.insert(end_idx+1, ")")
+                    modified.insert(-1, "(")
+                if tokens[0] == "(":
+                    end_idx = _parentheses(tokens)
+                    tokens.insert(end_idx+1, ")")
                 else:
-                    tmp.insert(i+2, ")")
-        print(tmp)
-        tree = Tree_Expr(tokens)
+                    tokens.insert(1, ")")
+            modified.append(token)
+        # print(modified)
+        tree = Tree_Expr(modified)
         result += tree.evaluate()
     return result
 
 if __name__ == "__main__":
-    lines = open_txt("test.txt")
-    # lines = open_txt("aoc18.txt")
+    # lines = open_txt("test.txt")
+    lines = open_txt("aoc18.txt")
     # print(*lines, sep="\n")
     print("part 1: ", part1(lines))
+    print("part 2: ", part2(lines))
