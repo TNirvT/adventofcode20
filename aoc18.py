@@ -1,5 +1,3 @@
-import re
-
 def open_txt(filename: str):
     lines = []
     with open(filename, "r") as f:
@@ -9,7 +7,7 @@ def open_txt(filename: str):
 
 def tokenize(line: str) -> list:
     tokens = []
-    for i, char in enumerate(line):
+    for char in line:
         if char.isnumeric():
             tokens.append(int(char))
         elif char != " ":
@@ -24,9 +22,10 @@ def _parentheses(tokens: list):
             stack_count += 1
         elif token == ")":
             stack_count -= 1
-            if stack_count == 0:
-                # return the index of corresponding ")"
-                return i
+
+        if stack_count == 0:
+            # return the index of corresponding ")"
+            return i
 
 class Node:
     def __init__(self, value: int | str | None) -> None:
@@ -49,6 +48,12 @@ def _values_by_layer(root: Node) -> list[list[int | str]]:
         layer = new_layer
     return layers
 
+def _arithmetic(a: int, b: int, op: str) -> int:
+    if op == "+":
+        return a + b
+    elif op == "*":
+        return a * b
+
 class Tree_Expr:
     def add_nodes(self, tokens: list, current: Node="root", parent: Node=None) -> None:
         if current == "root":
@@ -64,23 +69,30 @@ class Tree_Expr:
                 else: # trivial case, the expr is an int
                     current.value = tokens[0]
             else: # tokens[0] == "(", simply ignore the the leading parentheses
+                #  parentheses precedence already taken care when adding the edges
                 end_idx = _parentheses(tokens)
                 if end_idx == len(tokens) - 1:
                     self.add_nodes(tokens[1:-1], current, parent)
                 else:
-                    self.add_nodes(tokens[1:end_idx], current, parent)
+                    current.value = tokens[end_idx+1]
+                    current.left = Node(None)
+                    self.add_nodes(tokens[1:end_idx], current.left, current)
+                    current.right = Node(None)
+                    self.add_nodes(tokens[end_idx+2:], current, parent)
             return
 
         if isinstance(tokens[0], int):
             current.right.value = tokens[0]
             if tokens[1:]:
-                self.add_nodes(tokens[1:], current)
+                self.add_nodes(tokens[1:], current, parent)
         elif tokens[0] == "+" or tokens[0] == "*":
             next = Node(tokens[0])
             next.left = current
             next.right = Node(None)
-            if parent == None:
+            if current == self.root:
                 self.root = next
+            elif parent.left == current:
+                parent.left = next
             else:
                 parent.right = next
             self.add_nodes(tokens[1:], next, parent)
@@ -91,8 +103,12 @@ class Tree_Expr:
                 next = Node(tokens[end_idx+1])
                 next.left = current
                 next.right = Node(None)
-                if parent == None:
+                if current == self.root:
                     self.root = next
+                elif parent.left == current:
+                    parent.left = next
+                else:
+                    parent.right = next
                 self.add_nodes(tokens[end_idx+2:], next, parent)
 
     def __init__(self, tokens: list[int | str]) -> None:
@@ -104,13 +120,56 @@ class Tree_Expr:
         for layer in layers:
             print(layer)
 
+    def _recur(self, current: Node):
+        if isinstance(current.value, int):
+            return current.value
+        elif isinstance(current.left.value, int):
+            if isinstance(current.right.value, int):
+                return _arithmetic(current.left.value, current.right.value, current.value)
+            else:
+                return _arithmetic(current.left.value, self._recur(current.right), current.value)
+        else:
+            if isinstance(current.right.value, int):
+                return _arithmetic(self._recur(current.left), current.right.value, current.value)
+            else:
+                return _arithmetic(self._recur(current.left), self._recur(current.right), current.value)
+
+    def evaluate(self) -> int:
+        return self._recur(self.root)
+
+def part1(lines: list[str]) -> int:
+    result = 0
+    for line in lines:
+        tokens = tokenize(line)
+        tree = Tree_Expr(tokens)
+        result += tree.evaluate()
+    return result
+
+def part2(lines: list[str]) -> int:
+    result = 0
+    for line in lines:
+        tokens = tokenize(line)
+        tmp = []
+        for i, token in enumerate(tokens):
+            tmp.append(token)
+            if token == "+":
+                if tokens[i-1] == ")":
+                    start_idx = i - 1 -_parentheses(tokens[i-1::-1])
+                    tmp.insert(start_idx, "(")
+                else:
+                    tmp.insert(i-1, "(")
+                if tokens[i+1] == "(":
+                    end_idx = i + 1 + _parentheses(tokens[i+1:])
+                    tmp.insert(end_idx+1, ")")
+                else:
+                    tmp.insert(i+2, ")")
+        print(tmp)
+        tree = Tree_Expr(tokens)
+        result += tree.evaluate()
+    return result
+
 if __name__ == "__main__":
     lines = open_txt("test.txt")
     # lines = open_txt("aoc18.txt")
-    print(*lines, sep="\n")
-    lines_tokens = []
-    for line in lines:
-        lines_tokens.append(tokenize(line))
-    # print(*lines_tokens, sep="\n")
-    tree = Tree_Expr(lines_tokens[1])
-    tree.print()
+    # print(*lines, sep="\n")
+    print("part 1: ", part1(lines))
