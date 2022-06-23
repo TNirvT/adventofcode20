@@ -1,5 +1,7 @@
 import random
+import re
 from typing import NamedTuple
+from functools import reduce
 
 def open_txt(filename: str):
     tiles = dict()
@@ -33,153 +35,163 @@ def get_all_borders(tiles: dict[int, list[str]]) -> dict[int, Borders]:
         borders[tile_id] = get_borders(tile)
     return borders
 
-def rotate(borders: Borders, i: int) -> Borders:
-    if i == 1: # anti-clockwise 1
-        return Borders(borders.right, borders.left, borders.up[::-1], borders.down[::-1])
-    elif i == 2:
-        return Borders(borders.down[::-1], borders.up[::-1], borders.right[::-1], borders.left[::-1])
-    elif i == 3:
-        return Borders(borders.left[::-1], borders.right[::-1], borders.down, borders.up)
-
-def flip(borders: Borders, i: int) -> Borders:
-    if i == 1: # up-down flip
-        return Borders(borders.down, borders.up, borders.left[::-1], borders.right[::-1])
-    elif i == 2: # left-right flip
-        return Borders(borders.up[::-1], borders.down[::-1], borders.right, borders.left)
-
-def compare_borders(borders1: Borders, borders2: Borders):
-    # 0: up, 1: down, 2: left, 3: right
-    for i, border in enumerate(borders2):
-        if border in borders1:
-            if border == borders1.up:
-                if i == 1: # borders2.down == borders1.up
-                    return 0, borders2
-                elif i == 0:
-                    return 0, flip(borders2, 1)
-                elif i == 2:
-                    return 0, rotate(borders2, 1)
-                else:
-                    return 0, rotate(borders2, 3)
-            elif border == borders1.down:
-                if i == 0: # borders2.up == borders1.down
-                    return 1, borders2
-                elif i == 1:
-                    return 1, flip(borders2, 1)
-                elif i == 2:
-                    return 1, flip(rotate(borders2, 3), 2)
-                else:
-                    return 1, rotate(borders2, 1)
-            elif border == borders1.left:
-                if i == 3: # borders2.right == borders1.left
-                    return 2, borders2
-                elif i == 0:
-                    return 2, rotate(borders2, 3)
-                elif i == 1:
-                    return 2, flip(rotate(borders2, 1), 1)
-                else:
-                    return 2, flip(borders2, 2)
-            else:
-                if i == 2: # borders2.left == borders1.right
-                    return 3, borders2
-                elif i == 0:
-                    return 3, flip(rotate(borders2, 1), 1)
-                elif i == 1:
-                    return 3, rotate(borders2, 3)
-                else:
-                    return 3, flip(borders2, 2)
-
-        elif border[::-1] in borders1:
-            border = border[::-1]
-            if border == borders1.up:
-                if i == 0: # borders2.up[::-1] == borders1.up
-                    return 0, rotate(borders2, 2)
-                elif i == 1:
-                    return 0, flip(borders2, 2)
-                elif i == 2:
-                    return 0, flip(rotate(borders2, 1), 2)
-                else:
-                    return 0, rotate(borders2, 3)
-            elif border == borders1.down:
-                if i == 0: # borders2.up[::-1] == borders1.down
-                    return 1, flip(borders2, 2)
-                elif i == 1:
-                    return 1, rotate(borders2, 2)
-                elif i == 2:
-                    return 1, rotate(borders2, 3)
-                else:
-                    return 1, flip(rotate(borders2, 1), 2)
-            elif border == borders1.left:
-                if i == 0: # borders2.up[::-1] == borders1.left
-                    return 2, flip(rotate(borders2, 1), 3)
-                elif i == 1:
-                    return 2, rotate(borders2, 1)
-                elif i == 2:
-                    return 2, rotate(borders2, 2)
-                else:
-                    return 2, flip(borders2, 1)
-            else:
-                if i == 0: # borders2.up[::-1] == borders1.right
-                    return 3, rotate(borders2, 1)
-                elif i == 1:
-                    return 3, flip(rotate(borders2, 3), 1)
-                elif i == 2:
-                    return 3, flip(borders2, 1)
-                else:
-                    return 3, rotate(borders2, 2)
-
-def assemble_image_old(tiles: dict[int, list[str]]) -> list[list[int]]:
-    borders = get_all_borders(tiles)
-    tiles_pool = list(tiles.keys())
-    start = random.choice(tiles_pool)
-    tiles_pool.remove(start)
-    i, j = 0, 0
-    result = {(i, j): start}
-    for tile_id in tiles_pool:
-        compared = compare_borders(borders[start], borders[tile_id])
-        if compared:
-            direction, rearranged = compared
-            if direction == 0:
-                result[i, j-1] = tile_id
-            if direction == 1:
-                result[i, j+1] = tile_id
-            if direction == 2:
-                result[i-1, j] = tile_id
-            if direction == 3:
-                result[i+1, j] = tile_id
-
-    return result
-
-def has_common_border(borders1: Borders, borders2: Borders) -> bool:
+def common_border(borders1: Borders, borders2: Borders) -> str | None:
     for border in borders2:
         if border in borders1:
-            return True
+            return border[:]
         elif border[::-1] in borders1:
-            return True
-    return False
+            return border[::-1]
+    return None
 
-def assemble_image(tiles: dict[int, list[str]]):
-    borders = get_all_borders(tiles)
-    result: dict[int, list[int]]
-    result = dict()
-    for tile_id in borders:
-        for another_id in borders:
-            if has_common_border(borders[tile_id], borders[another_id]) and tile_id != another_id:
-                if tile_id not in result:
-                    result[tile_id] = [another_id]
-                else:
-                    result[tile_id].append(another_id)
-    return result
+def rotate_tile(tile: list[str], rotation: int) -> list[str]:
+    if rotation not in (1, 2, 3):
+        raise ValueError("rotate only 1 / 2 / 3 times")
 
-def part1(image: dict[int, list[int]]) -> int:
-    result = 1
+    if rotation == 1: # anti-clockwise by 90 deg
+        return ["".join(x[-1-i] for x in tile) for i in range(len(tile))]
+    elif rotation == 2:
+        return [x[::-1] for x in tile][::-1]
+    else:
+        return ["".join(x[i] for x in tile)[::-1] for i in range(len(tile))]
+
+def flip_tile(tile: list[str], direction: int) -> list[str]:
+    # direction 1 = up-down flip, 2 = left-right flip
+    if direction not in (1, 2):
+        raise ValueError("flip only 1(up-down) / 2(left-right)")
+
+    if direction == 1:
+        return tile[::-1]
+    else:
+        return [x[::-1] for x in tile]
+
+def transform_tile(tile: list[str]) -> list[list[str]]:
+    return [tile, rotate_tile(tile, 1), rotate_tile(tile, 2), rotate_tile(tile, 3), flip_tile(tile, 1), flip_tile(tile, 2), flip_tile(rotate_tile(tile, 1), 1), flip_tile(rotate_tile(tile, 1), 2)]
+
+class Image:
+    def __init__(self, tiles: dict[int, list[str]]) -> None:
+        self.tiles = tiles
+        self.borders = get_all_borders(tiles)
+        self.image = self.assemble_image()
+
+    def assemble_image(self) -> dict[int, list[int]]:
+        image: dict[int, list[int]]
+        image = dict()
+        for tile_id in self.borders:
+            for another_id in self.borders:
+                if common_border(self.borders[tile_id], self.borders[another_id]) is not None and tile_id != another_id:
+                    if tile_id not in image:
+                        image[tile_id] = [another_id]
+                    else:
+                        image[tile_id].append(another_id)
+        return image
+
+    def _corner_top_left(self, corner_id) -> None:
+        [neighbor1, neighbor2] = self.image[corner_id]
+        for transform in transform_tile(self.tiles[corner_id]):
+            borders = get_borders(transform)
+            common1 = common_border(borders, self.borders[neighbor1])
+            common2 = common_border(borders, self.borders[neighbor2])
+            if (common1 == borders.right and common2 == borders.down) or (common1 == borders.down and common2 == borders.right):
+                self.borders[corner_id] = borders
+                self.tiles[corner_id] = transform
+                return
+        raise AssertionError("cannot transform to top-left corner")
+
+    def _add_tile_to_right(self, current: int, next: int, row: list[str]):
+        for transform in transform_tile(self.tiles[next]):
+            transform_borders = get_borders(transform)
+            if transform_borders.left == self.borders[current].right:
+                tmp = [x[1:-1] for x in transform[1:-1]]
+                self.borders[next] = transform_borders
+                self.tiles[next] = transform
+                return [row[i] + tmp[i] for i in range(len(row))]
+        raise AssertionError("can't add tile to the row")
+
+    def image_row(self, current: int, row: list[str]=[]) -> list[str]:
+        if not row:
+            self.visited.add(current)
+            row = [x[1:-1] for x in self.tiles[current][1:-1]]
+            for neighbor in self.image[current]:
+                if neighbor not in self.visited:
+                    common = common_border(self.borders[current], self.borders[neighbor])
+                    if common == self.borders[current].right:
+                        next = neighbor
+                        break
+            self.visited.add(next)
+            row = self._add_tile_to_right(current, next, row)
+            return self.image_row(next, row)
+
+        for neighbor in self.image[current]:
+            if neighbor not in self.visited:
+                if common_border(self.borders[current], self.borders[neighbor]) == self.borders[current].right:
+                    if len(self.image[neighbor]) < len(self.image[current]):
+                        self.visited.add(neighbor)
+                        return self._add_tile_to_right(current, neighbor, row)
+
+                    self.visited.add(neighbor)
+                    row = self._add_tile_to_right(current, neighbor, row)
+                    return self.image_row(neighbor, row)
+        raise AssertionError("this should never appear") # debug
+
+    def final_image(self, start: int) -> list[str]:
+        self._corner_top_left(start)
+        final_image = []
+        self.visited = set()
+        while True:
+            final_image += self.image_row(start)
+            prev_down = self.borders[start].down[:]
+            tmp = set(self.image[start]).difference(self.visited)
+            if tmp:
+                start = tmp.pop()
+                for transform in transform_tile(self.tiles[start]):
+                    borders = get_borders(transform)
+                    if borders.up == prev_down:
+                        self.borders[start] = borders
+                        self.tiles[start] = transform
+            else:
+                break
+        # del self.visited
+        return final_image
+
+def part1(image: dict[int, list[int]]) -> list[int]:
+    result = []
     for tile_id, neighbors in image.items():
         if len(neighbors) == 2:
-            print(tile_id)
-            result *= tile_id
+            result.append(tile_id)
     return result
+
+def count_monster(final_image: list[str], monster_pattern: list[str]):
+    count = 0
+    for i, line in enumerate(final_image):
+        if i > len(final_image) - len(monster_pattern) + 1:
+            break
+
+        for j in range(len(line) - len(monster_pattern[0]) + 1):
+            if re.match(monster_pattern[0], line[j:]) and re.match(monster_pattern[1], final_image[i+1][j:]) and re.match(monster_pattern[2], final_image[i+2][j:]):
+                count += 1
+    return count
+
+def part2(final_image: list[str]):
+    monster = ["                  # ", "#    ##    ##    ###", " #  #  #  #  #  #   "]
+    monster_sharp = 0
+    monster_pattern = []
+    for line in monster:
+        monster_sharp += line.count("#")
+        monster_pattern.append(line.replace(" ", "."))
+    total_sharp = 0
+    for line in final_image:
+        total_sharp += line.count("#")
+
+    for transform in transform_tile(final_image):
+        count = count_monster(transform, monster_pattern)
+        if count > 0:
+            return total_sharp - (count * monster_sharp)
 
 if __name__ == "__main__":
     # tiles = open_txt("test.txt")
     tiles = open_txt("aoc20.txt")
-    image = assemble_image(tiles)
-    print("part 1: ", part1(image))
+    image = Image(tiles)
+    result = part1(image.image)
+    print("part 1: ", reduce(lambda a, b: a*b, result))
+    final_image = image.final_image(random.choice(result))
+    print("part 2: ", part2(final_image))
